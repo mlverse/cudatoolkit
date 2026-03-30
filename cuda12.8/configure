@@ -1,0 +1,174 @@
+#!/bin/sh
+
+# Downloads CUDA toolkit components from PyPI during package installation.
+# Component names and pinned versions are read from inst/components.tsv
+# (generated at build time by CI).
+#
+# Environment variables:
+#   CUDA_COMPONENTS  Comma-separated list of components to install.
+#                    Default: all components. Example: "runtime,cublas,cudnn"
+#                    Use @version to override a component's pinned version:
+#                    "runtime,cublas,cudnn@9.10.0.56"
+#   CUDA_PLATFORM    Override platform detection (linux-x64, linux-arm64, windows-x64).
+
+detect_platform() {
+  if [ -n "$CUDA_PLATFORM" ]; then
+    case "$CUDA_PLATFORM" in
+      linux-x64)    echo "x86_64" ;;
+      linux-arm64)  echo "aarch64" ;;
+      windows-x64)  echo "win_amd64" ;;
+      *)
+        echo "ERROR: Unknown CUDA_PLATFORM: $CUDA_PLATFORM" >&2
+        exit 1
+        ;;
+    esac
+    return
+  fi
+
+  os=$(uname -s)
+  arch=$(uname -m)
+
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64)  echo "x86_64" ;;
+        aarch64) echo "aarch64" ;;
+        *)
+          echo "ERROR: Unsupported Linux architecture: $arch" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      echo "win_amd64"
+      ;;
+    *)
+      echo "ERROR: Unsupported OS: $os" >&2
+      exit 1
+      ;;
+  esac
+}
+
+is_windows() {
+  case "$PLATFORM" in
+    win_amd64) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+download_file() {
+  url="$1"; dest="$2"
+  if command -v curl > /dev/null 2>&1; then
+    curl -sL -o "$dest" "$url"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -q -O "$dest" "$url"
+  else
+    echo "ERROR: Neither curl nor wget found." >&2
+    exit 1
+  fi
+}
+
+PLATFORM=$(detect_platform)
+TMPDIR=$(mktemp -d)
+trap "rm -rf '$TMPDIR'" EXIT
+
+# Parse CUDA_COMPONENTS filter and version overrides
+SELECTED_COMPONENTS="${CUDA_COMPONENTS:-}"
+
+is_selected() {
+  comp="$1"
+  # If no filter set, install all
+  [ -z "$SELECTED_COMPONENTS" ] && return 0
+  # Check if component (with or without @version) is in the comma-separated list
+  echo ",$SELECTED_COMPONENTS," | grep -q ",${comp}," || echo ",$SELECTED_COMPONENTS," | grep -q ",${comp}@"
+}
+
+# Get version override for a component, or empty if not overridden
+get_version_override() {
+  comp="$1"
+  [ -z "$SELECTED_COMPONENTS" ] && return
+  override=$(echo ",$SELECTED_COMPONENTS," | grep -o ",${comp}@[^,]*," | sed "s/,//g;s/${comp}@//")
+  echo "$override"
+}
+
+echo "=== CUDA Toolkit ==="
+echo "* Platform: ${PLATFORM}"
+if [ -n "$SELECTED_COMPONENTS" ]; then
+  echo "* Components: ${SELECTED_COMPONENTS}"
+fi
+echo ""
+
+# Shared lib directory for all components
+mkdir -p inst/lib
+
+# Read components.tsv (skip header) and install each component
+tail -n +2 inst/components.tsv | while IFS="	" read -r component pypi_package version wheel_subdir extract linux_only; do
+  [ -z "$component" ] && continue
+
+  # Skip components not in the selection
+  if ! is_selected "$component"; then
+    echo "* Skipping ${component} (not selected)"
+    continue
+  fi
+
+  # Skip linux-only components on Windows
+  if [ "$linux_only" = "yes" ] && is_windows; then
+    echo "* Skipping ${component} (Linux-only)"
+    continue
+  fi
+
+  # Check for version override
+  ver_override=$(get_version_override "$component")
+  if [ -n "$ver_override" ]; then
+    version="$ver_override"
+    echo "* Installing ${component} ${version} (overridden)..."
+  else
+    echo "* Installing ${component} ${version}..."
+  fi
+
+  # Fetch PyPI simple index for this package
+  INDEX_FILE="${TMPDIR}/index_${pypi_package}.html"
+  download_file "https://pypi.org/simple/${pypi_package}/" "$INDEX_FILE"
+
+  # Find matching wheel URL
+  WHEEL_URL=$(grep -o "href=\"[^\"]*${pypi_package}-${version}[^\"]*${PLATFORM}[^\"]*\"" "$INDEX_FILE" | head -1 | sed 's/href="//;s/"//')
+
+  if [ -z "$WHEEL_URL" ]; then
+    echo "  ERROR: Could not find wheel for ${pypi_package}==${version} on ${PLATFORM}" >&2
+    exit 1
+  fi
+
+  WHEEL_URL=$(echo "$WHEEL_URL" | sed 's/#.*//')
+  WHEEL_NAME=$(basename "$WHEEL_URL")
+  WHEEL_PATH="${TMPDIR}/${WHEEL_NAME}"
+
+  echo "  Downloading ${WHEEL_NAME}..."
+  download_file "$WHEEL_URL" "$WHEEL_PATH"
+
+  if [ ! -f "$WHEEL_PATH" ]; then
+    echo "  ERROR: Download failed." >&2
+    exit 1
+  fi
+
+  # Extract requested directories from the wheel
+  for dir in $(echo "$extract" | tr ',' ' '); do
+    unzip -q -o "$WHEEL_PATH" "nvidia/${wheel_subdir}/${dir}/*" -d inst/ 2>/dev/null || true
+  done
+
+  # Move shared libraries into the unified lib directory
+  if [ -d "inst/nvidia/${wheel_subdir}/lib" ]; then
+    mv inst/nvidia/${wheel_subdir}/lib/* inst/lib/ 2>/dev/null || true
+    rmdir inst/nvidia/${wheel_subdir}/lib 2>/dev/null || true
+  fi
+
+  # Ensure binaries are executable (for nvcc/ptxas)
+  if echo "$extract" | grep -q "bin"; then
+    chmod +x inst/nvidia/${wheel_subdir}/bin/* 2>/dev/null || true
+  fi
+
+  rm -f "$WHEEL_PATH"
+  echo "  Done."
+done
+
+echo ""
+echo "=== All components installed successfully ==="
