@@ -1,4 +1,4 @@
-# cudatoolkit2
+# cudatoolkit
 
 R packages that provide CUDA toolkit binaries by downloading pre-built libraries from PyPI at install time. Source packages are lightweight — all CUDA components are fetched during installation.
 
