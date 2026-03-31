@@ -68,6 +68,11 @@ download_file() {
   fi
 }
 
+if ! command -v unzip > /dev/null 2>&1; then
+  echo "ERROR: unzip not found. Please install unzip." >&2
+  exit 1
+fi
+
 PLATFORM=$(detect_platform)
 TMPDIR=$(mktemp -d)
 trap "rm -rf '$TMPDIR'" EXIT
@@ -152,7 +157,7 @@ tail -n +2 inst/components.tsv | while IFS="	" read -r component pypi_package ve
 
   # Extract requested directories from the wheel
   for dir in $(echo "$extract" | tr ',' ' '); do
-    unzip -q -o "$WHEEL_PATH" "nvidia/${wheel_subdir}/${dir}/*" -d inst/ 2>/dev/null || true
+    unzip -q -o "$WHEEL_PATH" "nvidia/${wheel_subdir}/${dir}/*" -d inst/
   done
 
   # Move shared libraries into the unified lib directory
