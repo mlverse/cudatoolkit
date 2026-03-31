@@ -175,5 +175,45 @@ tail -n +2 inst/components.tsv | while IFS="	" read -r component pypi_package ve
   echo "  Done."
 done
 
+# Patch RUNPATH on Linux so each .so resolves dependencies from its own
+# directory first, preventing LD_LIBRARY_PATH from pulling in wrong versions
+# (e.g. conda's older cuDNN).
+get_patchelf() {
+  command -v patchelf > /dev/null 2>&1 && { echo "patchelf"; return 0; }
+
+  # Download patchelf from PyPI wheel (static binary, no Python needed)
+  PATCHELF_VERSION="0.18.0"
+  case "$(uname -m)" in
+    x86_64)  PATCHELF_ARCH="x86_64" ;;
+    aarch64) PATCHELF_ARCH="aarch64" ;;
+    *) return 1 ;;
+  esac
+  PATCHELF_WHL="patchelf-${PATCHELF_VERSION}-py3-none-manylinux_2_17_${PATCHELF_ARCH}.manylinux2014_${PATCHELF_ARCH}.whl"
+  PATCHELF_URL="https://files.pythonhosted.org/packages/py3/p/patchelf/${PATCHELF_WHL}"
+
+  PATCHELF_DIR="${TMPDIR}/patchelf"
+  mkdir -p "$PATCHELF_DIR"
+  download_file "$PATCHELF_URL" "${PATCHELF_DIR}/${PATCHELF_WHL}"
+  unzip -q -o "${PATCHELF_DIR}/${PATCHELF_WHL}" "patchelf/patchelf" -d "$PATCHELF_DIR" 2>/dev/null || return 1
+  chmod +x "${PATCHELF_DIR}/patchelf/patchelf"
+  echo "${PATCHELF_DIR}/patchelf/patchelf"
+}
+
+if ! is_windows; then
+  PATCHELF_BIN=$(get_patchelf)
+  if [ -n "$PATCHELF_BIN" ]; then
+    echo "* Patching RUNPATH with \$ORIGIN..."
+    for so in inst/lib/*.so*; do
+      [ -f "$so" ] || continue
+      "$PATCHELF_BIN" --add-rpath '$ORIGIN' "$so" 2>/dev/null || true
+    done
+    echo "  Done."
+  else
+    echo "* WARNING: Could not obtain patchelf, skipping RUNPATH patching."
+    echo "  Install patchelf for reliable CUDA library loading when"
+    echo "  LD_LIBRARY_PATH contains other CUDA installations."
+  fi
+fi
+
 echo ""
 echo "=== All components installed successfully ==="

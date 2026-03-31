@@ -1,6 +1,6 @@
 Package: cuda12.8
 Title: CUDA 12.8 Toolkit Libraries
-Version: 1.0.3
+Version: 1.0.4
 Authors@R:
     person("Daniel", "Falbel", , "daniel@posit.co", role = c("aut", "cre"))
 Description: Provides CUDA 12.8 native libraries (runtime, cuBLAS, cuDNN, cuFFT,
