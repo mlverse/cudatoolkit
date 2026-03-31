@@ -205,10 +205,10 @@ get_patchelf() {
 if ! is_windows; then
   PATCHELF_BIN=$(get_patchelf)
   if [ -n "$PATCHELF_BIN" ]; then
-    echo "* Patching RUNPATH with \$ORIGIN..."
+    echo "* Patching RPATH with \$ORIGIN (--force-rpath so it takes precedence over LD_LIBRARY_PATH)..."
     for so in inst/lib/*.so*; do
       [ -f "$so" ] || continue
-      "$PATCHELF_BIN" --add-rpath '$ORIGIN' "$so" 2>/dev/null || true
+      "$PATCHELF_BIN" --force-rpath --add-rpath '$ORIGIN' "$so" 2>/dev/null || true
     done
     echo "  Done."
   else
