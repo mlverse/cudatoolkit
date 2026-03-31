@@ -1,6 +1,6 @@
 Package: cuda13.2
 Title: CUDA 13.2 Toolkit Libraries
-Version: 1.0.3
+Version: 1.0.4
 Authors@R:
     person("Daniel", "Falbel", , "daniel@posit.co", role = c("aut", "cre"))
 Description: Provides CUDA 13.2 native libraries (runtime, cuBLAS, cuDNN, cuFFT,
