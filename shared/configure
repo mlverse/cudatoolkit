@@ -182,21 +182,24 @@ get_patchelf() {
   command -v patchelf > /dev/null 2>&1 && { echo "patchelf"; return 0; }
 
   # Download patchelf from PyPI wheel (static binary, no Python needed)
-  PATCHELF_VERSION="0.18.0"
+  PATCHELF_VERSION="0.17.2.2"
   case "$(uname -m)" in
-    x86_64)  PATCHELF_ARCH="x86_64" ;;
-    aarch64) PATCHELF_ARCH="aarch64" ;;
+    x86_64)
+      PATCHELF_URL="https://files.pythonhosted.org/packages/f2/f9/e070956e350ccdfdf059251836f757ad91ac0c01b0ba3e033ea7188d8d42/patchelf-0.17.2.2-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.musllinux_1_1_x86_64.whl"
+      ;;
+    aarch64)
+      PATCHELF_URL="https://files.pythonhosted.org/packages/56/0d/dc3ac6c6e9e9d0d3e40bee1abe95a07034f83627319e60a7dc9abdbfafee/patchelf-0.17.2.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.musllinux_1_1_aarch64.whl"
+      ;;
     *) return 1 ;;
   esac
-  PATCHELF_WHL="patchelf-${PATCHELF_VERSION}-py3-none-manylinux_2_17_${PATCHELF_ARCH}.manylinux2014_${PATCHELF_ARCH}.whl"
-  PATCHELF_URL="https://files.pythonhosted.org/packages/py3/p/patchelf/${PATCHELF_WHL}"
 
   PATCHELF_DIR="${TMPDIR}/patchelf"
+  PATCHELF_WHL="${PATCHELF_DIR}/patchelf.whl"
   mkdir -p "$PATCHELF_DIR"
-  download_file "$PATCHELF_URL" "${PATCHELF_DIR}/${PATCHELF_WHL}"
-  unzip -q -o "${PATCHELF_DIR}/${PATCHELF_WHL}" "patchelf/patchelf" -d "$PATCHELF_DIR" 2>/dev/null || return 1
-  chmod +x "${PATCHELF_DIR}/patchelf/patchelf"
-  echo "${PATCHELF_DIR}/patchelf/patchelf"
+  download_file "$PATCHELF_URL" "$PATCHELF_WHL"
+  unzip -q -o "$PATCHELF_WHL" "patchelf-${PATCHELF_VERSION}.data/scripts/patchelf" -d "$PATCHELF_DIR" || return 1
+  chmod +x "${PATCHELF_DIR}/patchelf-${PATCHELF_VERSION}.data/scripts/patchelf"
+  echo "${PATCHELF_DIR}/patchelf-${PATCHELF_VERSION}.data/scripts/patchelf"
 }
 
 if ! is_windows; then
