@@ -1,0 +1,60 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+name: test-install
+
+jobs:
+  test-install:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [cuda12.6, cuda12.8, cuda13.2]
+
+    name: ${{ matrix.package }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+
+      - name: Install package
+        run: |
+          cd ${{ matrix.package }}
+          R CMD INSTALL .
+
+      - name: Verify RUNPATH contains $ORIGIN
+        run: |
+          LIB_PATH=$(Rscript -e 'cat(${{ matrix.package }}::lib_path())')
+          echo "lib_path: $LIB_PATH"
+
+          echo "=== Checking RUNPATH on .so files ==="
+          FAILED=0
+          for so in "$LIB_PATH"/*.so*; do
+            [ -f "$so" ] || continue
+            # Skip symlinks
+            [ -L "$so" ] && continue
+
+            RUNPATH=$(readelf -d "$so" 2>/dev/null | grep -E 'RUNPATH|RPATH' || true)
+            if echo "$RUNPATH" | grep -q '\$ORIGIN'; then
+              echo "OK: $(basename "$so")"
+            else
+              echo "FAIL: $(basename "$so") — RUNPATH does not contain \$ORIGIN"
+              echo "  $RUNPATH"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "ERROR: Some libraries are missing \$ORIGIN in RUNPATH"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== All libraries have \$ORIGIN in RUNPATH ==="
