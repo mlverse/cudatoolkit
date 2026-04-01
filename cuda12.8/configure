@@ -73,7 +73,7 @@ if ! command -v unzip > /dev/null 2>&1; then
   exit 1
 fi
 
-PLATFORM=$(detect_platform)
+PLATFORM=$(detect_platform) || exit 1
 TMPDIR=$(mktemp -d)
 trap "rm -rf '$TMPDIR'" EXIT
 
