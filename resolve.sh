@@ -55,9 +55,9 @@ for pkg_dir in "$SCRIPT_DIR"/cuda*/; do
     CUDNN_PKG="nvidia_cudnn_cu${CUDA_MAJOR}"
     NCCL_PKG="nvidia_nccl_cu${CUDA_MAJOR}"
     NVSHMEM_PKG="nvidia_nvshmem_cu${CUDA_MAJOR}"
-    CUDNN_SUBDIR="${WHEEL_SUBDIR}"
-    NCCL_SUBDIR="${WHEEL_SUBDIR}"
-    NVSHMEM_SUBDIR="${WHEEL_SUBDIR}"
+    CUDNN_SUBDIR="cudnn"
+    NCCL_SUBDIR="nccl"
+    NVSHMEM_SUBDIR="nvshmem"
   fi
 
   # Extract pinned versions from cuda-toolkit metadata
