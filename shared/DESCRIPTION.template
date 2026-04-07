@@ -7,6 +7,7 @@ Description: Provides CUDA {{CUDA_MINOR}} native libraries (runtime, cuBLAS, cuD
     cuSOLVER, cuSPARSE, CUPTI, NVRTC, NvJitLink, NCCL, NVSHMEM, and NVCC) by
     downloading pre-built binaries from PyPI at install time. Intended to be used
     as a dependency by packages that require CUDA {{CUDA_MINOR}}.
+SystemRequirements: Linux or Windows; not supported on macOS.
 License: MIT + file LICENSE
 URL: https://github.com/mlverse/cudatoolkit
 BugReports: https://github.com/mlverse/cudatoolkit/issues

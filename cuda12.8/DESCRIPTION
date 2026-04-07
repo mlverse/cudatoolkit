@@ -7,6 +7,7 @@ Description: Provides CUDA 12.8 native libraries (runtime, cuBLAS, cuDNN, cuFFT,
     cuSOLVER, cuSPARSE, CUPTI, NVRTC, NvJitLink, NCCL, NVSHMEM, and NVCC) by
     downloading pre-built binaries from PyPI at install time. Intended to be used
     as a dependency by packages that require CUDA 12.8.
+SystemRequirements: Linux or Windows; not supported on macOS.
 License: MIT + file LICENSE
 URL: https://github.com/mlverse/cudatoolkit
 BugReports: https://github.com/mlverse/cudatoolkit/issues
