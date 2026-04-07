@@ -1,6 +1,6 @@
 Package: cuda12.9
 Title: CUDA 12.9 Toolkit Libraries
-Version: 1.0.0
+Version: 1.0.1
 Authors@R:
     person("Daniel", "Falbel", , "daniel@posit.co", role = c("aut", "cre"))
 Description: Provides CUDA 12.9 native libraries (runtime, cuBLAS, cuDNN, cuFFT,

@@ -1,6 +1,6 @@
 Package: cuda12.6
 Title: CUDA 12.6 Toolkit Libraries
-Version: 1.0.6
+Version: 1.0.7
 Authors@R:
     person("Daniel", "Falbel", , "daniel@posit.co", role = c("aut", "cre"))
 Description: Provides CUDA 12.6 native libraries (runtime, cuBLAS, cuDNN, cuFFT,
