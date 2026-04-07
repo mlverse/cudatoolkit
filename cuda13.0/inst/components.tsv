@@ -1,0 +1,13 @@
+component	pypi_package	version	wheel_subdir	extract	linux_only
+runtime	nvidia_cuda_runtime	13.0.96	cu13	lib,include	no
+cublas	nvidia_cublas	13.1.0.3	cu13	lib,include	no
+cupti	nvidia_cuda_cupti	13.0.85	cu13	lib,include	no
+nvrtc	nvidia_cuda_nvrtc	13.0.88	cu13	lib,include	no
+cufft	nvidia_cufft	12.0.0.61	cu13	lib,include	no
+cusolver	nvidia_cusolver	12.0.4.66	cu13	lib,include	no
+cusparse	nvidia_cusparse	12.6.3.3	cu13	lib,include	no
+nvjitlink	nvidia_nvjitlink	13.0.88	cu13	lib,include	no
+nvcc	nvidia_cuda_nvcc	13.0.88	cu13	bin,include,nvvm	no
+cudnn	nvidia_cudnn_cu13	9.14.0	cu13	lib,include	no
+nccl	nvidia_nccl_cu13	2.27.7	cu13	lib,include	yes
+nvshmem	nvidia_nvshmem_cu13	3.4.5	cu13	lib,include	yes
