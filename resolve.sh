@@ -30,6 +30,7 @@ for pkg_dir in "$SCRIPT_DIR"/cuda*/; do
     cusolver  nvidia_cusolver${PYPI_SUFFIX}       cusolver       lib,include no
     cusparse  nvidia_cusparse${PYPI_SUFFIX}       cusparse       lib,include no
     nvjitlink nvidia_nvjitlink${PYPI_SUFFIX}      nvjitlink      lib,include no
+    curand    nvidia_curand${PYPI_SUFFIX}          curand         lib,include no
     nvcc      nvidia_cuda_nvcc${PYPI_SUFFIX}      cuda_nvcc      bin,include,nvvm no
     cufile    nvidia_cufile${PYPI_SUFFIX}          cufile         lib,include     yes
     "
@@ -51,6 +52,7 @@ for pkg_dir in "$SCRIPT_DIR"/cuda*/; do
     cusolver  nvidia_cusolver           ${WHEEL_SUBDIR}  lib,include no
     cusparse  nvidia_cusparse           ${WHEEL_SUBDIR}  lib,include no
     nvjitlink nvidia_nvjitlink          ${WHEEL_SUBDIR}  lib,include no
+    curand    nvidia_curand             ${WHEEL_SUBDIR}  lib,include no
     nvcc      nvidia_cuda_nvcc          ${WHEEL_SUBDIR}  bin,include,nvvm no
     cufile    nvidia_cufile             ${WHEEL_SUBDIR}  lib,include     yes
     "

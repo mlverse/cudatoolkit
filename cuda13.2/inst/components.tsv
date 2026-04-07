@@ -7,6 +7,7 @@ cufft	nvidia_cufft	12.2.0.37	cu13	lib,include	no
 cusolver	nvidia_cusolver	12.1.0.51	cu13	lib,include	no
 cusparse	nvidia_cusparse	12.7.9.17	cu13	lib,include	no
 nvjitlink	nvidia_nvjitlink	13.2.51	cu13	lib,include	no
+curand	nvidia_curand	10.4.2.51	cu13	lib,include	no
 nvcc	nvidia_cuda_nvcc	13.2.51	cu13	bin,include,nvvm	no
 cufile	nvidia_cufile	1.17.0.44	cu13	lib,include	yes
 cudnn	nvidia_cudnn_cu13	9.20.0.48	cu13	lib,include	no

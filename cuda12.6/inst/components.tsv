@@ -7,6 +7,7 @@ cufft	nvidia_cufft_cu12	11.3.0.4	cufft	lib,include	no
 cusolver	nvidia_cusolver_cu12	11.7.1.2	cusolver	lib,include	no
 cusparse	nvidia_cusparse_cu12	12.5.4.2	cusparse	lib,include	no
 nvjitlink	nvidia_nvjitlink_cu12	12.6.85	nvjitlink	lib,include	no
+curand	nvidia_curand_cu12	10.3.7.77	curand	lib,include	no
 nvcc	nvidia_cuda_nvcc_cu12	12.6.85	cuda_nvcc	bin,include,nvvm	no
 cufile	nvidia_cufile_cu12	1.11.1.6	cufile	lib,include	yes
 cudnn	nvidia_cudnn_cu12	9.5.0.50	cudnn	lib,include	no
