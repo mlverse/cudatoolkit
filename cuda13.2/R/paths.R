@@ -1,8 +1,8 @@
 # Read component -> wheel_subdir mapping from installed components.tsv
 .read_components <- function() {
-  tsv <- system.file("components.tsv", package = packageName(), mustWork = TRUE)
-  df <- read.delim(tsv, stringsAsFactors = FALSE)
-  setNames(df$wheel_subdir, df$component)
+  tsv <- system.file("components.tsv", package = utils::packageName(), mustWork = TRUE)
+  df <- utils::read.delim(tsv, stringsAsFactors = FALSE)
+  stats::setNames(df$wheel_subdir, df$component)
 }
 
 # Lazily cached component map
@@ -27,7 +27,7 @@
 #' @export
 cuda_path <- function(component) {
   system.file(file.path("nvidia", .component_subdir(component)),
-              package = packageName(), mustWork = TRUE)
+              package = utils::packageName(), mustWork = TRUE)
 }
 
 #' Path to the shared library directory
@@ -37,7 +37,7 @@ cuda_path <- function(component) {
 #' @return A character string with the path to the lib directory.
 #' @export
 lib_path <- function() {
-  system.file("lib", package = packageName(), mustWork = TRUE)
+  system.file("lib", package = utils::packageName(), mustWork = TRUE)
 }
 
 #' Path to a CUDA component's headers
