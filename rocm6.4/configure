@@ -1,0 +1,252 @@
+#!/bin/sh
+
+# Downloads ROCm toolkit components from repo.radeon.com during package
+# installation. Component names and pinned versions are read from
+# inst/components.tsv (generated at build time by resolve-rocm.sh).
+#
+# Environment variables:
+#   ROCM_COMPONENTS  Comma-separated list of components to install.
+#                    Default: all components. Example: "runtime,rocblas,hipsparse"
+#   ROCM_PLATFORM    Only "linux-x64" is supported (ROCm packages are amd64).
+#   ROCM_APT_BASE    Override the apt repository base URL.
+#   ROCM_DEB_CACHE   Persistent directory for downloaded .deb files (optional).
+
+detect_platform() {
+  if [ -n "$ROCM_PLATFORM" ]; then
+    case "$ROCM_PLATFORM" in
+      linux-x64) echo "x86_64" ;;
+      *)
+        echo "ERROR: Unsupported ROCM_PLATFORM: $ROCM_PLATFORM" >&2
+        exit 1
+        ;;
+    esac
+    return
+  fi
+
+  os=$(uname -s)
+  arch=$(uname -m)
+
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64) echo "x86_64" ;;
+        *)
+          echo "ERROR: ROCm packages are only available for Linux x86_64," >&2
+          echo "       got: $arch" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    *)
+      echo "ERROR: ROCm packages are only available on Linux, got: $os" >&2
+      exit 1
+      ;;
+  esac
+}
+
+download_file() {
+  url="$1"; dest="$2"
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL -o "$dest" "$url"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -q -O "$dest" "$url"
+  else
+    echo "ERROR: Neither curl nor wget found." >&2
+    exit 1
+  fi
+}
+
+# Extract a .deb without requiring root. Prefer dpkg-deb; fall back to
+# ar + tar so the package works on non-Debian distributions too.
+extract_deb() {
+  deb="$1"; dest="$2"
+  mkdir -p "$dest"
+
+  if command -v dpkg-deb > /dev/null 2>&1; then
+    dpkg-deb -x "$deb" "$dest"
+    return
+  fi
+
+  if ! command -v ar > /dev/null 2>&1; then
+    echo "ERROR: Cannot extract .deb files: install 'dpkg-deb' or 'ar'." >&2
+    exit 1
+  fi
+
+  member=$(ar t "$deb" | grep '^data\.tar' | head -1)
+  if [ -z "$member" ]; then
+    echo "ERROR: No data.tar member found in $deb." >&2
+    exit 1
+  fi
+
+  case "$member" in
+    *.xz)  ar p "$deb" "$member" | tar -xJf - -C "$dest" ;;
+    *.gz)  ar p "$deb" "$member" | tar -xzf - -C "$dest" ;;
+    *.bz2) ar p "$deb" "$member" | tar -xjf - -C "$dest" ;;
+    *.zst) ar p "$deb" "$member" | tar --zstd -xf - -C "$dest" ;;
+    *)     ar p "$deb" "$member" | tar -xf - -C "$dest" ;;
+  esac
+}
+
+if [ -f inst/rocm-version.env ]; then
+  . inst/rocm-version.env
+fi
+ROCM_APT_BASE="${ROCM_APT_BASE:-https://repo.radeon.com/rocm/apt/6.4}"
+
+PLATFORM=$(detect_platform) || exit 1
+TMPDIR=$(mktemp -d)
+trap "rm -rf '$TMPDIR'" EXIT
+
+SELECTED_COMPONENTS="${ROCM_COMPONENTS:-}"
+if [ -z "$SELECTED_COMPONENTS" ]; then
+  SELECTED_COMPONENTS="${ROCM_DEFAULT_COMPONENTS:-}"
+fi
+case "$SELECTED_COMPONENTS" in
+  all) SELECTED_COMPONENTS="" ;;
+esac
+
+is_selected() {
+  comp="$1"
+  [ -z "$SELECTED_COMPONENTS" ] && return 0
+  echo ",$SELECTED_COMPONENTS," | grep -q ",${comp},"
+}
+
+echo "=== ROCm Toolkit ==="
+echo "* Platform: ${PLATFORM}"
+if [ -n "$SELECTED_COMPONENTS" ]; then
+  echo "* Components: ${SELECTED_COMPONENTS}"
+fi
+echo ""
+
+mkdir -p inst/lib inst/include inst/rocm
+
+# Read components.tsv (skip header) and install each component
+tail -n +2 inst/components.tsv | while IFS="	" read -r component deb_package version filename extract linux_only; do
+  [ -z "$component" ] && continue
+
+  if ! is_selected "$component"; then
+    echo "* Skipping ${component} (not selected)"
+    continue
+  fi
+
+  echo "* Installing ${component} (${deb_package} ${version})..."
+
+  deb_name=$(basename "$filename")
+  if [ -n "$ROCM_DEB_CACHE" ]; then
+    mkdir -p "$ROCM_DEB_CACHE"
+    deb_path="${ROCM_DEB_CACHE}/${deb_name}"
+  else
+    deb_path="${TMPDIR}/${deb_name}"
+  fi
+
+  if [ ! -f "$deb_path" ]; then
+    echo "  Downloading ${deb_name}..."
+    download_file "${ROCM_APT_BASE}/${filename}" "$deb_path"
+  fi
+
+  root="${TMPDIR}/root_${component}"
+  extract_deb "$deb_path" "$root"
+
+  prefix=""
+  [ -n "$ROCM_PREFIX" ] && prefix="${root}/${ROCM_PREFIX}"
+  if [ -z "$prefix" ] || [ ! -d "$prefix" ]; then
+    prefix=$(find "$root" -maxdepth 3 -type d -name 'rocm-*' -print -quit)
+  fi
+  if [ -z "$prefix" ] || [ ! -d "$prefix" ]; then
+    echo "  ERROR: Could not locate the ROCm prefix in ${deb_name}." >&2
+    exit 1
+  fi
+
+  pkgdir="inst/rocm/${component}"
+  mkdir -p "$pkgdir"
+
+  for dir in $(echo "$extract" | tr ',' ' '); do
+    [ -d "${prefix}/${dir}" ] || continue
+    if [ "$dir" = "lib" ]; then
+      # Keep CMake package files under the component, merge the rest into
+      # the shared lib directory so a single lib_path() works for everything.
+      for entry in "${prefix}/lib"/*; do
+        [ -e "$entry" ] || continue
+        if [ "$(basename "$entry")" = "cmake" ]; then
+          mkdir -p "${pkgdir}/lib"
+          cp -a "$entry" "${pkgdir}/lib/"
+        else
+          cp -a "$entry" inst/lib/
+        fi
+      done
+    elif [ "$dir" = "include" ]; then
+      # Mirror /opt/rocm/include: headers are namespaced by component
+      # (include/hip, include/rocblas, ...) so a single include root works.
+      mkdir -p inst/include
+      cp -a "${prefix}/include/." inst/include/
+    else
+      cp -a "${prefix}/${dir}" "$pkgdir/"
+    fi
+  done
+
+  # Expose ROCm version metadata next to each component.
+  if [ -d "${prefix}/.info" ]; then
+    cp -a "${prefix}/.info" "$pkgdir/"
+    mkdir -p inst/.info
+    cp -a "${prefix}/.info/." inst/.info/
+  fi
+
+  if echo "$extract" | grep -q "bin"; then
+    chmod +x "${pkgdir}"/bin/* 2>/dev/null || true
+  fi
+
+  rm -rf "$root"
+  [ -n "$ROCM_DEB_CACHE" ] || rm -f "$deb_path"
+  echo "  Done."
+done
+
+# Copy .info/version into every component so `include_path(comp)/../.info`
+# resolves (used by tools/kit-lib.sh to verify the ROCm SDK version).
+if [ -f "inst/rocm/core/.info/version" ]; then
+  mkdir -p inst/.info
+  cp "inst/rocm/core/.info/version" "inst/.info/version"
+  for d in inst/rocm/*/; do
+    [ -d "$d" ] || continue
+    mkdir -p "${d}.info"
+    cp "inst/rocm/core/.info/version" "${d}.info/version"
+  done
+fi
+
+get_patchelf() {
+  command -v patchelf > /dev/null 2>&1 && { echo "patchelf"; return 0; }
+
+  PATCHELF_VERSION="0.17.2.2"
+  case "$(uname -m)" in
+    x86_64)
+      PATCHELF_URL="https://files.pythonhosted.org/packages/f2/f9/e070956e350ccdfdf059251836f757ad91ac0c01b0ba3e033ea7188d8d42/patchelf-0.17.2.2-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.musllinux_1_1_x86_64.whl"
+      ;;
+    *) return 1 ;;
+  esac
+
+  PATCHELF_DIR="${TMPDIR}/patchelf"
+  PATCHELF_WHL="${PATCHELF_DIR}/patchelf.whl"
+  mkdir -p "$PATCHELF_DIR"
+  download_file "$PATCHELF_URL" "$PATCHELF_WHL" || return 1
+  command -v unzip > /dev/null 2>&1 || return 1
+  unzip -q -o "$PATCHELF_WHL" "patchelf-${PATCHELF_VERSION}.data/scripts/patchelf" -d "$PATCHELF_DIR" || return 1
+  chmod +x "${PATCHELF_DIR}/patchelf-${PATCHELF_VERSION}.data/scripts/patchelf"
+  echo "${PATCHELF_DIR}/patchelf-${PATCHELF_VERSION}.data/scripts/patchelf"
+}
+
+PATCHELF_BIN=$(get_patchelf)
+if [ -n "$PATCHELF_BIN" ]; then
+  echo "* Patching RPATH with \$ORIGIN (--force-rpath so it takes precedence over LD_LIBRARY_PATH)..."
+  for so in inst/lib/*.so*; do
+    [ -f "$so" ] || continue
+    "$PATCHELF_BIN" --force-rpath \
+      --set-rpath '$ORIGIN:$ORIGIN/rocm_sysdeps/lib:$ORIGIN/host-math/lib' \
+      "$so" 2>/dev/null || true
+  done
+  echo "  Done."
+else
+  echo "* WARNING: Could not obtain patchelf, skipping RUNPATH patching."
+  echo "  Install patchelf for reliable ROCm library loading when"
+  echo "  LD_LIBRARY_PATH contains other ROCm installations."
+fi
+
+echo ""
+echo "=== All components installed successfully ==="

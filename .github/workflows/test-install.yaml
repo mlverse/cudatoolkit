@@ -58,3 +58,52 @@ jobs:
 
           echo ""
           echo "=== All libraries have \$ORIGIN in RUNPATH ==="
+
+  test-rocm:
+    runs-on: ubuntu-22.04
+    env:
+      ROCM_COMPONENTS: core,hipblas-common,hip-dev,hsa-dev
+
+    name: rocm6.4
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+
+      - name: Install package
+        run: |
+          cd rocm6.4
+          R CMD INSTALL .
+
+      - name: Verify paths and headers
+        run: |
+          Rscript -e '
+            stopifnot(requireNamespace("rocm6.4", quietly = TRUE))
+            inc <- rocm6.4::include_path()
+            lib <- rocm6.4::lib_path()
+            cat("include_path:", inc, "\n")
+            cat("lib_path:", lib, "\n")
+            stopifnot(file.exists(file.path(inc, "hip", "hip_runtime.h")))
+            stopifnot(file.exists(file.path(inc, "hsa", "hsa.h")))
+            stopifnot(file.exists(file.path(inc, "hipblas-common", "hipblas-common.h")))
+            ver <- readLines(file.path(inc, "..", ".info", "version"))
+            cat("rocm version:", ver, "\n")
+            stopifnot(grepl("^6\\.4", ver))
+            stopifnot(length(list.files(lib, pattern = "\\.so")) > 0)
+          '
+
+      - name: Verify RPATH contains \$ORIGIN
+        run: |
+          LIB_PATH=$(Rscript -e 'cat(rocm6.4::lib_path())')
+          for so in "$LIB_PATH"/*.so*; do
+            [ -f "$so" ] || continue
+            [ -L "$so" ] && continue
+            readelf -d "$so" | grep -q '\$ORIGIN' || {
+              echo "FAIL: $(basename "$so") is missing \$ORIGIN in RPATH"
+              exit 1
+            }
+          done
+          echo "=== All ROCm libraries have \$ORIGIN in RPATH ==="
