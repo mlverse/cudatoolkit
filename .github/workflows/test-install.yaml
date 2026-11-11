@@ -1,7 +1,10 @@
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "rocm*"
   pull_request:
+  workflow_dispatch:
 
 name: test-install
 
