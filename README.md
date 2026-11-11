@@ -11,7 +11,12 @@ install.packages("remotes")
 # Install a specific CUDA version
 remotes::install_github("mlverse/cudatoolkit/cuda12.6")
 remotes::install_github("mlverse/cudatoolkit/cuda12.8")
+remotes::install_github("mlverse/cudatoolkit/cuda12.9")
 remotes::install_github("mlverse/cudatoolkit/cuda13.2")
+
+# Install a specific ROCm version (see ROCM.md for details)
+remotes::install_github("mlverse/cudatoolkit/rocm6.4")
+
 ```
 
 ### Installing specific components

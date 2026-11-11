@@ -17,7 +17,7 @@ root (no `apt install`).
 # Install the remotes package if needed
 install.packages("remotes")
 
-# Install the ROCm toolkit (branch not merged into main yet)
+# Install the ROCm toolkit
 remotes::install_github("mlverse/cudatoolkit/rocm6.4", ref = "rocm6.4")
 ```
 
