@@ -1,0 +1,19 @@
+Package: rocm{{ROCM_MINOR}}
+Title: ROCm {{ROCM_MINOR}} Toolkit Libraries
+Version: {{PKG_VERSION}}
+Authors@R:
+    person("Daniel", "Falbel", , "daniel@posit.co", role = c("aut", "cre"))
+Description: Provides ROCm {{ROCM_MINOR}} native libraries (HIP runtime, HSA,
+    rocBLAS, hipBLAS, hipBLASLt, hipFFT, hipSPARSE, hipSOLVER, rocRAND,
+    hipRAND, RCCL, MIOpen, device libraries, and their development headers)
+    by downloading pre-built packages from repo.radeon.com at install time.
+    Intended to be used as a dependency by packages that require ROCm
+    {{ROCM_MINOR}}.
+SystemRequirements: Linux x86_64; not supported on macOS or Windows.
+Imports: stats, utils
+License: MIT + file LICENSE
+URL: https://github.com/mlverse/cudatoolkit
+BugReports: https://github.com/mlverse/cudatoolkit/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2

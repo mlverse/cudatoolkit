@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# ROCm configure output
+rocm*/inst/lib/
+rocm*/inst/include/
+rocm*/inst/rocm/
+rocm*/inst/.info/
